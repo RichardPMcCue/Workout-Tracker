@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekday Bodyweight Trainer – Mobile (Unified Days)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#151922; --ink:#e8ecf1; --muted:#a9b3c4; --line:#222938; --accent:#66b8ff; --ok:#6ed39a; --warn:#ffc857;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:16px 18px;border-bottom:1px solid var(--line);background:#121722;position:sticky;top:0;z-index:5}
+  h1{margin:0;font-size:18px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .wrap{max-width:860px;margin:0 auto;padding:14px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+  select,button{background:#141a26;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  button{cursor:pointer}
+  button.accent{background:rgba(102,184,255,.12);border-color:var(--accent)}
+  .pill{padding:6px 10px; border:1px solid var(--line); background:#141a26; color:#a9b3c4; border-radius:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden}
+  .card h2{font-size:16px;margin:10px 12px}
+  .section{padding:10px 12px;border-top:1px dashed var(--line)}
+  .ex-head{display:grid;grid-template-columns:1.4fr .8fr;gap:10px;padding:8px 12px;color:#a9b3c4;text-transform:uppercase;font-size:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#121722}
+  .ex-row{display:grid;gap:10px;padding:10px 12px;border-bottom:1px dashed var(--line)}
+  .name{font-weight:600}
+  .target{color:#a9b3c4;font-size:13px}
+  .sets{display:flex;gap:8px;flex-wrap:wrap}
+  .set input{width:72px;background:#0f131b;border:1px solid #283142;border-radius:8px;padding:8px 6px;color:var(--ink)}
+  .notes textarea{width:100%;background:#0f131b;border:1px solid #283142;border-radius:10px;color:var(--ink);padding:8px}
+  .tiny{font-size:12px;color:#a9b3c4}
+  .flag{display:flex;align-items:center;gap:6px}
+  @media(min-width:620px){.ex-row{grid-template-columns:1.6fr .9fr 1.1fr 1.1fr 1.1fr 2fr .7fr;align-items:start}}
+  @media(max-width:619px){.ex-row{grid-template-columns:1fr}.sets{margin-top:4px}}
+  .foot{color:#a9b3c4;font-size:12px;margin:6px 0 12px}
+
+  /* Floating Timer Panel */
+  .timer{
+    position:fixed; right:10px; bottom:10px; z-index:50;
+    width: min(340px, 90vw);
+    background:#121722; border:1px solid var(--line); border-radius:14px; box-shadow:0 6px 28px rgba(0,0,0,.35);
+  }
+  .timer header{
+    display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:10px 12px; background:#0f151f; border-bottom:1px solid var(--line);
+  }
+  .timer h3{margin:0;font-size:14px}
+  .twrap{padding:10px 12px; display:grid; gap:10px}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .row > *{border-radius:10px}
+  .timer input[type="number"]{width:72px; background:#0f131b;border:1px solid #283142;color:var(--ink);padding:6px}
+  .preset button{background:#182133}
+  .face{font-variant-numeric:tabular-nums; font-size:22px; text-align:center; padding:6px 0}
+  .mode{display:flex; gap:6px; flex-wrap:wrap}
+  .mode button{padding:6px 10px}
+  .mode .active{background:rgba(102,184,255,.15);border-color:var(--accent)}
+  .tinybtn{padding:6px 8px}
+
+  /* Compact mobile UI */
+  @media (max-width: 619px){
+    header{ display:none; } /* hide persistent banner on phones */
+    .wrap{ padding-top:8px; }
+    .controls{ gap:6px; }
+    .timer{ right:8px; bottom:8px; width:min(300px, 92vw); }
+    .timer header{ padding:6px 8px; }
+    .twrap{ padding:8px; gap:8px; }
+    .row{ gap:6px; }
+    .mode button{ padding:5px 8px; }
+  }
+  /* Timer mini mode: header only (face+controls hidden) */
+  .timer.mini .twrap{ display:none; }
+  .timer.mini h3::after{ content:' (mini)'; color: var(--muted); font-weight:400; }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>Weekday Bodyweight Trainer – Mobile</h1>
+  <div class="sub">Import plans via paste • <b>Auto‑save</b> • <b>Export to Clipboard</b> • <b>Timer</b> • <b>Auto‑advance</b> • <b>Last updated</b> (open in Safari)</div>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <span id="lastUpdated" class="pill">Last updated: —</span>
+    <label>Week 
+      <select id="weekSel">
+        <option value="1" selected>Week 1</option>
+        <option value="2">Week 2</option>
+        <option value="3">Week 3</option>
+        <option value="4">Week 4</option>
+        <option value="5">Week 5</option>
+        <option value="6">Week 6</option>
+        <option value="7">Week 7</option>
+        <option value="8">Week 8</option>
+      </select>
+    </label>
+    <label class="pill" style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="autoAdvance" checked> Auto‑advance & Rest
+    </label>
+    <label>Rest (s) <input id="autoRestSeconds" type="number" min="5" step="5" value="60" style="width:84px;background:#141a26;border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:6px 8px"></label>
+    <button id="exportWeekBtn" class="accent">Export Week Log</button>
+<button id="importPasteBtn" class="accent">Paste Plan from Clipboard</button>
+<span id="soundStatus" class="pill" style="cursor:pointer" title="Tap to enable timer sounds on iPhone">🔇 Enable sound</span>
+  </div>
+
+  <!-- DAY 1 -->
+  <!-- DAY 1 -->
+  <div class="card" id="day1">
+    <h2>Day 1 — —</h2>
+    <div class="ex-head"><div>Exercise</div><div>Target</div></div>
+    <div class="section tiny">No exercises loaded. Use <b>Paste Plan from Clipboard</b> to populate this day.</div>
+  </div>
+<!-- DAY 2 -->
+  <!-- DAY 2 -->
+  <div class="card" id="day2">
+    <h2>Day 2 — —</h2>
+    <div class="ex-head"><div>Exercise</div><div>Target</div></div>
+    <div class="section tiny">No exercises loaded. Use <b>Paste Plan from Clipboard</b> to populate this day.</div>
+  </div>
+<!-- DAY 3 -->
+  <!-- DAY 3 -->
+  <div class="card" id="day3">
+    <h2>Day 3 — —</h2>
+    <div class="ex-head"><div>Exercise</div><div>Target</div></div>
+    <div class="section tiny">No exercises loaded. Use <b>Paste Plan from Clipboard</b> to populate this day.</div>
+  </div>
+<!-- DAY 4 -->
+  <div class="foot">Open in Safari (not preview) so auto‑save, timer, and export work. Data is stored per Week via localStorage.</div>
+</div>
+
+<!-- Floating Timer Panel -->
+<div class="timer" id="timer">
+  <header>
+    <h3>Timer • Rest / Stopwatch / Intervals</h3>
+    <div class="row">
+      <button class="tinybtn" id="minimizeBtn">–</button>
+      <button class="tinybtn" id="closeBtn">×</button>
+    </div>
+  </header>
+  <div class="twrap" id="timerBody">
+    <div class="mode">
+      <button data-mode="countdown" class="accent" id="modeCountdown">Rest</button>
+      <button data-mode="stopwatch" id="modeStopwatch">Stopwatch</button>
+      <button data-mode="intervals" id="modeIntervals">Intervals</button>
+      <span class="pill" id="statusPill">Ready</span>
+    </div>
+
+    <div class="face" id="face">00:00</div>
+
+    <!-- Countdown controls -->
+    <div id="countdownControls">
+      <div class="row preset">
+        <button data-preset="20">20s</button>
+        <button data-preset="30">30s</button>
+        <button data-preset="45">45s</button>
+        <button data-preset="60">60s</button>
+        <button data-preset="90">90s</button>
+      </div>
+      <div class="row">
+        <label>Seconds <input type="number" id="cdSeconds" min="1" step="1" value="60"></label>
+        <button class="ok" id="cdStart">Start</button>
+        <button id="cdPause">Pause</button>
+        <button id="cdReset">Reset</button>
+        <button id="pasteBtn">Paste Time → Focused Field</button>
+      </div>
+    </div>
+
+    <!-- Stopwatch controls -->
+    <div id="stopwatchControls" style="display:none">
+      <div class="row">
+        <button class="ok" id="swStart">Start</button>
+        <button id="swPause">Pause</button>
+        <button id="swReset">Reset</button>
+        <button id="pasteBtn2">Paste Time → Focused Field</button>
+      </div>
+    </div>
+
+    <!-- Interval controls -->
+    <div id="intervalControls" style="display:none">
+      <div class="row">
+        <label>Work (s) <input type="number" id="ivWork" min="1" step="1" value="30"></label>
+        <label>Rest (s) <input type="number" id="ivRest" min="1" step="1" value="30"></label>
+        <label>Rounds <input type="number" id="ivRounds" min="1" step="1" value="4"></label>
+      </div>
+      <div class="row">
+        <button class="ok" id="ivStart">Start</button>
+        <button id="ivPause">Pause</button>
+        <button id="ivReset">Reset</button>
+        <button id="pasteBtn3">Paste Last Work Time</button>
+      </div>
+      <div class="tiny" id="ivState">Standing by…</div>
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+// --- Mobile Audio Unlock helpers (iOS Safari) ---
+let audioCtx = null;
+function ensureAudioCtx(){
+  if(audioCtx) return audioCtx;
+  try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+  return audioCtx;
+}
+async function unlockAudio(){
+  const ctx = ensureAudioCtx();
+  if(!ctx) return false;
+  if(ctx.state === 'suspended'){ try{ await ctx.resume(); }catch(e){} }
+  // Play an inaudible blip to satisfy the gesture requirement
+  try{
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type='sine'; o.frequency.value=1; g.gain.value=0.00001; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.03);
+  }catch(e){}
+  return ctx.state === 'running';
+}
+// Unlock on first touch/click anywhere
+document.addEventListener('touchstart', ()=>unlockAudio(), {once:true});
+document.addEventListener('mousedown', ()=>unlockAudio(), {once:true});
+</script>
+
+<script>
+// Ensure everything is ready (no late injection)
+window.addEventListener('load', function(){
+  const soundStatus = document.getElementById('soundStatus');
+  async function enableSoundFromGesture(){
+    const ok = await unlockAudio();
+    if(ok){ soundStatus.textContent = '🔊 Sound on'; soundStatus.style.color = '#c8f7d0'; soundStatus.title='Timer sounds enabled'; }
+    else { soundStatus.textContent = '🔇 Enable sound'; soundStatus.style.color = ''; }
+  }
+  if(soundStatus){ soundStatus.addEventListener('click', enableSoundFromGesture); }
+  // Timer minimize/close handlers + restore state
+  const timerEl = document.getElementById('timer');
+  const minimizeBtn = document.getElementById('minimizeBtn');
+  const closeBtn = document.getElementById('closeBtn');
+  if(minimizeBtn && timerEl){
+    minimizeBtn.addEventListener('click', ()=>{
+      timerEl.classList.toggle('mini');
+      try{ localStorage.setItem('wbw::timerMini', timerEl.classList.contains('mini') ? '1' : '0'); }catch(e){}
+    });
+  }
+  if(closeBtn && timerEl){
+    closeBtn.addEventListener('click', ()=>{
+      timerEl.style.display = 'none';
+      try{ localStorage.setItem('wbw::timerHidden','1'); }catch(e){}
+    });
+  }
+  // Restore last timer state (honor stored preference only)
+  try{
+    const storedMini = localStorage.getItem('wbw::timerMini');
+    const storedHidden = localStorage.getItem('wbw::timerHidden');
+    if(storedHidden==='1'){ timerEl.style.display='none'; }
+    if(storedMini==='1'){ timerEl.classList.add('mini'); } else { timerEl.classList.remove('mini'); }
+  }catch(e){}
+
+  // ---------- Auto-save, Last Updated & Export ----------
+  if('localStorage' in window){
+    const weekSel = document.getElementById('weekSel');
+    const exportWeekBtn = document.getElementById('exportWeekBtn');
+    const lastUpdatedEl = document.getElementById('lastUpdated');
+    const key = (w)=>'wbw::week::'+w;
+
+    function fmtDate(d){
+      try{
+        const dt = new Date(d);
+        const opts = {year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit'};
+        return dt.toLocaleString(undefined, opts);
+      }catch(e){ return d+''; }
+    }
+    function setLastUpdatedDisplay(ts){
+      lastUpdatedEl.textContent = 'Last updated: ' + (ts ? fmtDate(ts) : '—');
+    }
+    function loadLastUpdated(){
+      try{
+        const metaRaw = localStorage.getItem(key(weekSel.value)+'::meta');
+        if(!metaRaw) { setLastUpdatedDisplay(null); return; }
+        const meta = JSON.parse(metaRaw);
+        setLastUpdatedDisplay(meta.lastUpdated||null);
+      }catch(e){ setLastUpdatedDisplay(null); }
+    }
+
+    function grabDay(cardId){
+      const card = document.getElementById(cardId);
+      const rows = [...card.querySelectorAll('.ex-row')];
+      return rows.map(r=>{
+        const inputs = r.querySelectorAll('.sets input');
+        const note = r.querySelector('textarea');
+        const top = r.querySelector('input[type="checkbox"]');
+        return {
+          name: r.querySelector('.name')?.textContent.trim(),
+          target: r.querySelector('.target')?.textContent.trim(),
+          set1: inputs[0]?.value||'',
+          set2: inputs[1]?.value||'',
+          set3: inputs[2]?.value||'',
+          notes: note?.value||'',
+          top: top?.checked||false
+        };
+      });
+    }
+    function clearDay(cardId){
+      const rows = document.getElementById(cardId).querySelectorAll('.ex-row');
+      rows.forEach(r=>{
+        const ins = r.querySelectorAll('.sets input');
+        if(ins[0]) ins[0].value=''; if(ins[1]) ins[1].value=''; if(ins[2]) ins[2].value='';
+        const ta = r.querySelector('textarea'); if(ta) ta.value='';
+        const cb = r.querySelector('input[type="checkbox"]'); if(cb) cb.checked=false;
+      });
+    }
+    function fillDay(cardId, arr){
+      const rows = document.getElementById(cardId).querySelectorAll('.ex-row');
+      (arr||[]).forEach((it,i)=>{
+        const r = rows[i]; if(!r) return;
+        r.querySelectorAll('.sets input')[0].value = it.set1||'';
+        r.querySelectorAll('.sets input')[1].value = it.set2||'';
+        r.querySelectorAll('.sets input')[2].value = it.set3||'';
+        r.querySelector('textarea').value = it.notes||'';
+        r.querySelector('input[type="checkbox"]').checked = !!it.top;
+      });
+    }
+    function saveWeek(){
+      const data = {
+        day1: grabDay('day1'),
+        day2: grabDay('day2'),
+        day3: grabDay('day3')
+      };
+      localStorage.setItem(key(weekSel.value), JSON.stringify(data));
+      const ts = new Date().toISOString();
+      localStorage.setItem(key(weekSel.value)+'::meta', JSON.stringify({lastUpdated: ts}));
+      setLastUpdatedDisplay(ts);
+    }
+    function loadWeek(){
+      ['day1','day2','day3'].forEach(clearDay);
+      const raw = localStorage.getItem(key(weekSel.value));
+      if(!raw) { setLastUpdatedDisplay(null); return; }
+      try{
+        const d = JSON.parse(raw);
+        fillDay('day1', d.day1||[]); fillDay('day2', d.day2||[]); fillDay('day3', d.day3||[]); fillDay('day4', d.day4||[]); fillDay('day5', d.day5||[]);
+      }catch(e){}
+    }
+    async function exportWeek(){
+      const raw = localStorage.getItem(key(weekSel.value));
+      const data = raw ? JSON.parse(raw) : {
+        day1: grabDay('day1'), day2: grabDay('day2'), day3: grabDay('day3')
+      };
+      function dayTitle(id){
+        const h2 = document.querySelector('#'+id+' h2');
+        if(!h2) return id.toUpperCase();
+        const parts = h2.textContent.split('—');
+        return (parts[1] ? parts[1] : h2.textContent).trim();
+      }
+      function lines(dayLabel, arr){
+        let L = `
+== ${dayLabel} ==
+`;
+        (arr||[]).forEach(it=>{
+          const s1 = it.set1||'-', s2 = it.set2||'-', s3 = it.set3||'-';
+          const top = it.top ? ' (TOP)' : '';
+          const note = it.notes ? ` // ${it.notes.replace(/\n/g,' ')}` : '';
+          L += `• ${it.name} [${it.target}]: ${s1} | ${s2} | ${s3}${top}${note}
+`;
+        });
+        return L;
+      }
+      let txt = `Bodyweight Week ${weekSel.value} — Training Log
+(Format: Set1 | Set2 | Set3; "TOP" = hit top of range)
+`;
+      txt += lines('Day 1 – ' + dayTitle('day1'), data.day1 || []);
+      txt += lines('Day 2 – ' + dayTitle('day2'), data.day2 || []);
+      txt += lines('Day 3 – ' + dayTitle('day3'), data.day3 || []);
+      if(navigator.clipboard && window.isSecureContext){
+        try{ await navigator.clipboard.writeText(txt); alert('Copied week log to clipboard.'); return; }catch(e){}
+      }
+      const blob = new Blob([txt], {type:'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Week${weekSel.value}_Workout_Log.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function bindAutosave(){
+      const fields = document.querySelectorAll('input, textarea, select:not(#weekSel)');
+      fields.forEach(el=>{
+        el.addEventListener('input', ()=>{ window.requestAnimationFrame(saveWeek); });
+        el.addEventListener('change', saveWeek);
+      });
+    }
+
+    bindAutosave();
+    loadWeek();
+    loadLastUpdated();
+    weekSel.addEventListener('change', ()=>{ loadWeek(); loadLastUpdated(); });
+    exportWeekBtn.addEventListener('click', exportWeek);
+  }
+
+  
+    // ======= Clipboard-first Import (clean) =======
+    const importPasteBtn = document.getElementById('importPasteBtn');
+    const openPlanModalLink = document.getElementById('openPlanModal');
+
+    // Build modal once if not present
+    let planModal = document.getElementById('planModal');
+    if(!planModal){
+      planModal = document.createElement('div');
+      planModal.id = 'planModal';
+      planModal.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:1000';
+      planModal.innerHTML = `
+        <div style="width:min(760px,94vw);max-height:86vh;overflow:auto;background:#151922;border:1px solid #222938;border-radius:14px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+            <h3 style="margin:0;font-size:16px">Paste Week Plan</h3>
+            <div>
+              <button id="planPasteFromClipboard" class="tinybtn">Paste from Clipboard</button>
+              <button id="planPasteExample" class="tinybtn">Insert Example</button>
+              <button id="planModalClose" class="tinybtn">✕</button>
+            </div>
+          </div>
+          <div class="tiny" style="margin-bottom:8px;color:#a9b3c4">
+            Format each exercise as a bullet with a target in brackets, e.g. <code>• Reverse Lunge [8–12]</code>.<br/>
+            Start each day with a header like <code>== Day 1 – Title ==</code>. Days you omit will be hidden.
+          </div>
+          <textarea id="planTextarea" rows="16" style="width:100%;background:#0f131b;border:1px solid #283142;border-radius:10px;color:#e8ecf1;padding:10px"></textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button id="planModalApply" class="accent">Apply to Selected Week</button>
+          </div>
+        </div>`;
+      document.body.appendChild(planModal);
+    }
+    const planTextarea = document.getElementById('planTextarea');
+    const planModalClose = document.getElementById('planModalClose');
+    const planModalApply = document.getElementById('planModalApply');
+    const planPasteExample = document.getElementById('planPasteExample');
+    const planPasteFromClipboard = document.getElementById('planPasteFromClipboard');
+
+    function openPlanModal(prefill=''){
+      if(typeof prefill==='string') planTextarea.value = prefill;
+      planModal.style.display = 'flex';
+    }
+    function closePlanModal(){ planModal.style.display = 'none'; }
+
+    function makePlanTemplate(){
+      return (
+`Bodyweight Week ${weekSel.value} — Training Log
+(Format: Set1 | Set2 | Set3; "TOP" = hit top of range)
+
+== Day 1 – Title ==
+• Exercise A [8–12]
+• Exercise B [20–30 s]
+
+== Day 2 – Title ==
+• Exercise C [6–10]
+• Exercise D [30–40 s]
+
+== Day 3 – Title ==
+• Exercise E [AMRAP]
+`
+      );
+    }
+
+    function parsePlanText(txt){
+      const out = {};
+      txt = (txt||'').replace(/\r\n?/g, '\n');
+      const dayRegex = /^==\s*Day\s*(\d)\s*[^=]*==\s*$/gmi;
+      let match, indices = [];
+      while((match = dayRegex.exec(txt))){
+        indices.push({day:`day${match[1]}`, idx: match.index, header: match[0]});
+      }
+      indices.push({day:null, idx: txt.length, header:''});
+      for(let i=0;i<indices.length-1;i++){
+        const cur = indices[i], nxt = indices[i+1];
+        const block = txt.slice(cur.idx, nxt.idx);
+        const title = (cur.header||'').replace(/^==\s*Day\s*\d\s*[—-]\s*/i,'').replace(/==\s*$/,'').trim() || '';
+        const items = [];
+        block.split('\n').forEach(line=>{
+          const m = /^\s*[•\-]\s*(.+?)\s*\[(.+?)\]\s*$/i.exec(line.trim());
+          if(m){ items.push({name:m[1].trim(), target:m[2].trim()}); }
+        });
+        out[cur.day] = {title, items};
+      }
+      return out;
+    }
+
+    function clearAndSetDay(cardId, plan){
+      const card = document.getElementById(cardId);
+      if(!card) return;
+      // Reset the card to empty shell
+      const dayNum = (cardId==='day1'?1:cardId==='day2'?2:cardId==='day3'?3:cardId==='day4'?4:5);
+      card.innerHTML = `<h2>Day ${dayNum} — ${(plan&&plan.title)||'—'}</h2>
+        <div class="ex-head"><div>Exercise</div><div>Target</div></div>`;
+      if(!plan || !plan.items || !plan.items.length){
+        card.classList.add('hidden');
+        card.insertAdjacentHTML('beforeend','<div class="section tiny">No exercises loaded.</div>');
+        return;
+      }
+      card.classList.remove('hidden');
+      plan.items.forEach(obj=>{
+        const row = document.createElement('div');
+        row.className = 'ex-row';
+        row.innerHTML = `
+          <div class="name">${obj.name}</div>
+          <div class="target">${obj.target}</div>
+          <div class="sets set"><label class="tiny">Set 1</label><input></div>
+          <div class="sets set"><label class="tiny">Set 2</label><input></div>
+          <div class="sets set"><label class="tiny">Set 3</label><input></div>
+          <div class="notes"><textarea></textarea></div>
+          <div class="flag"><input type="checkbox"><span class="tiny">Top?</span></div>`;
+        card.appendChild(row);
+      });
+    }
+
+    function applyPlanToWeek(plan){
+      ['day1','day2','day3'].forEach(id=> clearAndSetDay(id, plan[id]));
+      bindAutosave();
+      bindSetCompletion();
+      saveWeek();
+    }
+
+    async function tryReadClipboard(){
+      try{ return (await navigator.clipboard.readText() || '').trim(); }
+      catch(e){ return ''; }
+    }
+
+    async function importFromClipboardGesture(){
+      const txt = await tryReadClipboard();
+      if(txt){
+        const plan = parsePlanText(txt);
+        const hasItems = Object.values(plan).some(p=>p && p.items && p.items.length);
+        if(hasItems){ applyPlanToWeek(plan); alert('Plan imported to Week ' + weekSel.value + '.'); return; }
+        openPlanModal(txt);
+      }else{
+        openPlanModal(makePlanTemplate());
+        setTimeout(()=>alert('Clipboard blocked. Paste your plan into the box.'), 30);
+      }
+    }
+
+    if(importPasteBtn) importPasteBtn.addEventListener('click', importFromClipboardGesture);
+    if(openPlanModalLink) openPlanModalLink.addEventListener('click', (e)=>{ e.preventDefault(); openPlanModal(''); });
+    if(planModalClose) planModalClose.addEventListener('click', closePlanModal);
+    if(planPasteExample) planPasteExample.addEventListener('click', ()=> planTextarea.value = makePlanTemplate());
+    if(planPasteFromClipboard) planPasteFromClipboard.addEventListener('click', async ()=>{
+      const txt = await tryReadClipboard(); if(txt) planTextarea.value = txt;
+    });
+    if(planModalApply) planModalApply.addEventListener('click', ()=>{
+      try{
+        const plan = parsePlanText(planTextarea.value||'');
+        applyPlanToWeek(plan);
+        closePlanModal();
+      }catch(err){ alert('Could not parse your plan. Use bullets and [targets].'); }
+    });
+
+    // ---------- Auto-Advance between Sets with Rest ----------
+  const autoToggle = document.getElementById('autoAdvance');
+  const autoRestSeconds = document.getElementById('autoRestSeconds');
+
+  function allSetInputs(){
+    const order = ['day1','day2','day3'];
+    const arr = [];
+    order.forEach(dayId=>{
+      const card = document.getElementById(dayId);
+      card.querySelectorAll('.ex-row').forEach(row=>{
+        const inputs = row.querySelectorAll('.sets input');
+        inputs.forEach(inp=>arr.push(inp));
+      });
+    });
+    return arr;
+  }
+  function nextInput(current){
+    const arr = allSetInputs();
+    const idx = arr.indexOf(current);
+    if(idx === -1) return null;
+    return arr[idx+1] || null;
+  }
+  function bindSetCompletion(){
+    document.querySelectorAll('.sets input').forEach(inp=>{
+      if(inp._boundAutoAdv) return;
+      inp._boundAutoAdv = true;
+      inp.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){
+          e.preventDefault();
+          triggerAutoRestFrom(inp);
+        }
+      });
+      inp.addEventListener('blur', ()=>{
+        if(inp.value && inp.value.trim() !== ''){
+          triggerAutoRestFrom(inp);
+        }
+      });
+    });
+  }
+  let autoRestActive = false;
+  function triggerAutoRestFrom(inp){
+    if(!autoToggle?.checked) return;
+    if(autoRestActive) return;
+    const secs = Math.max(5, parseInt(autoRestSeconds?.value||'60',10));
+    try{ document.getElementById('modeCountdown').click(); }catch(e){}
+    if(document.getElementById('cdSeconds')) document.getElementById('cdSeconds').value = secs;
+    if(typeof cdStart?.onclick === 'function') cdStart.onclick();
+    autoRestActive = true;
+    const watcher = new MutationObserver(()=>{
+      const txt = statusPill?.textContent||'';
+      if(/Done!/i.test(txt)){
+        watcher.disconnect();
+        autoRestActive = false;
+        const nxt = nextInput(inp);
+        if(nxt){
+          nxt.focus();
+          setTimeout(()=>{ nxt.scrollIntoView({behavior:'smooth', block:'center'}); }, 30);
+        }else{
+          alert('Session finished — nice work!');
+        }
+      }
+    });
+    watcher.observe(document.getElementById('statusPill'), {characterData:true, subtree:true, childList:true});
+  }
+  bindSetCompletion();
+
+  // ---------- Timer / Stopwatch / Intervals ----------
+  const face = document.getElementById('face');
+  const statusPill = document.getElementById('statusPill');
+  const cdSeconds = document.getElementById('cdSeconds');
+  const cdStart = document.getElementById('cdStart');
+  const cdPause = document.getElementById('cdPause');
+  const cdReset = document.getElementById('cdReset');
+  const presets = document.querySelectorAll('[data-preset]');
+
+  let mode = 'countdown';
+  const countdownControls = document.getElementById('countdownControls');
+  const stopwatchControls = document.getElementById('stopwatchControls');
+  const intervalControls = document.getElementById('intervalControls');
+  document.getElementById('modeCountdown').onclick = ()=>switchMode('countdown');
+  document.getElementById('modeStopwatch').onclick = ()=>switchMode('stopwatch');
+  document.getElementById('modeIntervals').onclick = ()=>switchMode('intervals');
+
+  function switchMode(m){
+    mode = m;
+    countdownControls.style.display = m==='countdown' ? '' : 'none';
+    stopwatchControls.style.display = m==='stopwatch' ? '' : 'none';
+    intervalControls.style.display = m==='intervals' ? '' : 'none';
+    status('Ready');
+    render(0);
+    stopAll();
+  }
+
+  // Audio beep + optional vibrate
+  let beepAudio = null;
+function loadBeep(){
+  try{
+    const ctx = ensureAudioCtx();
+    window._beep = (dur=0.18, freq=930)=>{
+      if(!ctx) return;
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+      o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      o.stop(ctx.currentTime + dur + 0.02);
+    };
+  }catch(e){
+    // Fallback to tiny embedded audio if WebAudio not available
+    beepAudio = new Audio('data:audio/mp3;base64,//uQZAAAAAAAAAAAAAAAAAAAA');
+    window._beep = ()=>{ if(beepAudio){ beepAudio.currentTime=0; beepAudio.play().catch(()=>{});} };
+  }
+}
+function alertBeep(){ loadBeep(); unlockAudio().then(()=>{ try{ window._beep(0.18, 930); }catch(e){} }); if(navigator.vibrate) navigator.vibrate(180); }
+
+  function status(txt){ statusPill.textContent = txt; }
+  function render(ms){
+    const t = Math.max(0, Math.round(ms/1000));
+    const m = Math.floor(t/60); const s = t%60;
+    document.getElementById('face').textContent = (''+m).padStart(2,'0')+':'+(''+s).padStart(2,'0');
+  }
+  function stopAll(){}
+
+  // Countdown loop
+  let cdRunning=false, cdRemaining=0, lastTick=0;
+  document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{ document.getElementById('cdSeconds').value=b.dataset.preset; render(parseInt(b.dataset.preset,10)*1000); });
+  document.getElementById('cdStart').onclick=()=>{
+    const sec = Math.max(1, parseInt(document.getElementById('cdSeconds').value||'0',10));
+    cdRemaining = sec*1000; lastTick = performance.now(); cdRunning=true; status('Resting…'); loopCountdown();
+  };
+  document.getElementById('cdPause').onclick=()=>{ cdRunning=false; status('Paused'); };
+  document.getElementById('cdReset').onclick=()=>{ cdRunning=false; cdRemaining=0; render(0); status('Ready'); };
+  function loopCountdown(){
+    if(!cdRunning) return;
+    const now = performance.now(); const dt = now-lastTick; lastTick=now;
+    cdRemaining -= dt;
+    if(cdRemaining<=0){ render(0); cdRunning=false; status('Done!'); alertBeep(); return; }
+    render(cdRemaining); requestAnimationFrame(loopCountdown);
+  }
+
+  // Intervals (stopwatch omitted since not used in auto-advance paste now)
+  let ivRunning=false, ivPhase='work', ivRemaining=0, ivWork=30, ivRest=30, ivRounds=4, ivRound=1, ivLast=0;
+  document.getElementById('ivStart').onclick=()=>{
+    ivWork = Math.max(1, parseInt(document.getElementById('ivWork').value||'30',10));
+    ivRest = Math.max(1, parseInt(document.getElementById('ivRest').value||'30',10));
+    ivRounds = Math.max(1, parseInt(document.getElementById('ivRounds').value||'4',10));
+    ivRound=1; ivPhase='work'; ivRemaining=ivWork*1000; ivLast=performance.now(); ivRunning=true; status('Intervals…'); document.getElementById('ivState').textContent=`Round ${ivRound}/${ivRounds} — WORK ${ivWork}s`; alertBeep(); loopIntervals();
+  };
+  document.getElementById('ivPause').onclick=()=>{ ivRunning=false; status('Paused'); };
+  document.getElementById('ivReset').onclick=()=>{ ivRunning=false; render(0); document.getElementById('ivState').textContent='Standing by…'; status('Ready'); };
+  function loopIntervals(){
+    if(!ivRunning) return;
+    const now = performance.now(); const dt = now-ivLast; ivLast=now;
+    ivRemaining -= dt;
+    if(ivRemaining<=0){
+      if(ivPhase==='work'){ ivPhase='rest'; ivRemaining=ivRest*1000; document.getElementById('ivState').textContent=`Round ${ivRound}/${ivRounds} — REST ${ivRest}s`; }
+      else { ivRound++; if(ivRound>ivRounds){ ivRunning=false; render(0); document.getElementById('ivState').textContent='Done!'; status('Done!'); alertBeep(); return; } ivPhase='work'; ivRemaining=ivWork*1000; document.getElementById('ivState').textContent=`Round ${ivRound}/${ivRounds} — WORK ${ivWork}s`; }
+      alertBeep();
+    }
+    render(ivRemaining); requestAnimationFrame(loopIntervals);
+  }
+});
+</script>
+
+
+<!-- Plan Import Modal (created/enhanced by JS) -->
+<div id="planModal" style="display:none"></div>
+</body>
+</html>
