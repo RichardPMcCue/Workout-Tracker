@@ -1,4 +1,3 @@
-# test
 <!doctype html>
 <html lang="en">
 <head>
@@ -87,11 +86,8 @@
     </label>
     <label>Rest (s) <input id="autoRestSeconds" type="number" min="5" step="5" value="60" style="width:84px;background:#141a26;border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:6px 8px"></label>
     <button id="exportWeekBtn" class="accent">Export to Clipboard</button>
-<button id="importWeekBtn">Import (Paste Plan)</button>
-<span class="tiny">(need a <a id="planTemplateLink" href="#" style="text-decoration:underline">plan template</a>?)</span>
-<input id="importFile" type="file" accept=".txt" style="display:none">
-<button id="importWeekBtn">Import Week Plan</button>
-<span class="tiny">(<a id="planTemplateLink" href="#" style="text-decoration:underline">plan template</a>)</span>
+<button id="importPasteBtn">Paste Plan from Clipboard</button>
+<span class="tiny">(or <a id="openPlanModal" href="#" style="text-decoration:underline">paste manually</a>)</span>
   </div>
 
   <!-- DAY 1 -->
@@ -559,6 +555,160 @@ window.addEventListener('load', function(){
     exportWeekBtn.removeEventListener('click', exportWeek); // remove previous if present
     exportWeekBtn.addEventListener('click', exportWeekToClipboard);
 
+    // ======= Clipboard-first Import (single button) =======
+    const importPasteBtn = document.getElementById('importPasteBtn');
+    const openPlanModalLink = document.getElementById('openPlanModal');
+    const planModal = document.getElementById('planModal');
+    const planTextarea = document.getElementById('planTextarea');
+    const planModalClose = document.getElementById('planModalClose');
+    const planModalApply = document.getElementById('planModalApply');
+    const planPasteExample = document.getElementById('planPasteExample');
+    const planPasteFromClipboard = document.getElementById('planPasteFromClipboard');
+
+    function openPlanModal(prefill=''){
+      if (typeof prefill === 'string' && prefill.trim()) planTextarea.value = prefill;
+      planModal.style.display = 'flex';
+    }
+    function closePlanModal(){ planModal.style.display = 'none'; }
+
+    function makePlanTemplate(){
+      return (
+`Bodyweight Week ${weekSel.value} — Training Log
+(Format: Set1 | Set2 | Set3; "TOP" = hit top of range)
+
+== Day 1 – Full Body Strength & Core ==
+• Reverse Lunge to Knee Drive [40s work]
+• Feet-Elevated Push-ups [6–10 reps]
+• Side Plank with Hip Lifts [8–12 / side]
+• Jump Squats [20s ×3]
+• Bear Crawl Shoulder Taps [40s work]
+
+== Day 2 – Lower Body & Core Stability ==
+• Bulgarian Split Squat [8–12 / leg]
+• Single-Leg Glute Bridge Hold [20–30 s / side]
+• Side Lunge to Knee Drive [8–12 / side]
+• Forearm Plank Reach [20–30 s]
+• Calf Raise (Slow Eccentric) [12–15 reps]
+
+== Day 3 – Upper Body & Conditioning ==
+• Pike Push-ups [6–10 reps]
+• Hollow Body Hold [20–30 s]
+• Mountain Climbers [30–40 s]
+• Diamond Push-ups [6–10 reps]
+• Burpees (Finisher) [20s on / 10s off ×2]
+`
+      );
+    }
+
+    function parsePlanText(txt){
+      const out = {};
+      txt = (txt||'').replace(/\r\n?/g, '\n');
+      const dayRegex = /^==\s*Day\s*(\d)\s*[^=]*==\s*$/gmi;
+      let match, indices = [];
+      while((match = dayRegex.exec(txt))){
+        indices.push({day:`day${match[1]}`, idx: match.index, header: match[0]});
+      }
+      indices.push({day:null, idx: txt.length, header:''});
+      for(let i=0;i<indices.length-1;i++){
+        const cur = indices[i], nxt = indices[i+1];
+        const block = txt.slice(cur.idx, nxt.idx);
+        const title = (cur.header||'').replace(/^==\s*Day\s*\d\s*[—-]\s*/i,'').replace(/==\s*$/,'').trim() || '';
+        const items = [];
+        block.split('\n').forEach(line=>{
+          const m = /^\s*[•\-]\s*(.+?)\s*\[(.+?)\]\s*$/i.exec(line.trim());
+          if(m){ items.push({name:m[1].trim(), target:m[2].trim()}); }
+        });
+        out[cur.day] = {title, items};
+      }
+      return out;
+    }
+
+    function clearAndSetDay(cardId, plan){
+      const card = document.getElementById(cardId);
+      if(!card) return;
+      if(plan && plan.title){
+        const h2 = card.querySelector('h2');
+        if(h2){
+          const dayNum = (cardId==='day1'?1:cardId==='day2'?2:cardId==='day3'?3:cardId==='day4'?4:5);
+          h2.textContent = `Day ${dayNum} — ${plan.title}`;
+        }
+      }
+      card.querySelectorAll('.ex-row').forEach(r=>r.remove());
+      if(!plan || !plan.items || !plan.items.length){
+        card.classList.add('hidden');
+        return;
+      }
+      card.classList.remove('hidden');
+      const head = card.querySelector('.ex-head');
+      plan.items.forEach(obj=>{
+        const row = document.createElement('div');
+        row.className = 'ex-row';
+        row.innerHTML = `
+          <div class="name">${obj.name}</div>
+          <div class="target">${obj.target}</div>
+          <div class="sets set"><label class="tiny">Set 1</label><input></div>
+          <div class="sets set"><label class="tiny">Set 2</label><input></div>
+          <div class="sets set"><label class="tiny">Set 3</label><input></div>
+          <div class="notes"><textarea></textarea></div>
+          <div class="flag"><input type="checkbox"><span class="tiny">Top?</span></div>`;
+        head.parentNode.appendChild(row);
+      });
+    }
+
+    function applyPlanToWeek(plan){
+      ['day1','day2','day3','day4','day5'].forEach(id=> clearAndSetDay(id, plan[id]));
+      bindAutosave();
+      bindSetCompletion();
+      saveWeek();
+    }
+
+    async function tryReadClipboard(){
+      try{
+        const txt = await navigator.clipboard.readText();
+        return (txt||'').trim();
+      }catch(e){
+        return '';
+      }
+    }
+
+    async function importFromClipboardGesture(){
+      const txt = await tryReadClipboard();
+      if(txt){
+        const plan = parsePlanText(txt);
+        const hasItems = Object.values(plan).some(p=>p && p.items && p.items.length);
+        if(hasItems){
+          applyPlanToWeek(plan);
+          alert('Plan imported from clipboard to Week ' + weekSel.value + '.');
+          return;
+        }
+        openPlanModal(txt);
+      }else{
+        openPlanModal(makePlanTemplate());
+        setTimeout(()=>alert('Clipboard access was blocked. Paste your plan into the box.'), 50);
+      }
+    }
+
+    if (importPasteBtn) importPasteBtn.addEventListener('click', importFromClipboardGesture);
+    if (openPlanModalLink) openPlanModalLink.addEventListener('click', (e)=>{ e.preventDefault(); openPlanModal(''); });
+    if (planModalClose) planModalClose.addEventListener('click', closePlanModal);
+    if (planPasteExample) planPasteExample.addEventListener('click', ()=> planTextarea.value = makePlanTemplate());
+    if (planPasteFromClipboard) planPasteFromClipboard.addEventListener('click', async ()=>{
+      const txt = await tryReadClipboard();
+      if(txt) planTextarea.value = txt;
+    });
+    if (planModalApply) planModalApply.addEventListener('click', ()=>{
+      try{
+        const plan = parsePlanText(planTextarea.value||'');
+        applyPlanToWeek(plan);
+        closePlanModal();
+      }catch(err){
+        console.error(err);
+        alert('Could not parse your plan. Make sure each line looks like: • Name [target]');
+      }
+    });
+
+
+
     // ======= Import (Paste Plan) Modal =======
     const planModal = document.getElementById('planModal');
     const planTextarea = document.getElementById('planTextarea');
@@ -677,129 +827,7 @@ window.addEventListener('load', function(){
     });
 
 
-    // ---------- IMPORT WEEK PLAN (from exported style .txt) ----------
-    const importWeekBtn = document.getElementById('importWeekBtn');
-    const importFile = document.getElementById('importFile');
-    const planTemplateLink = document.getElementById('planTemplateLink');
-
-    function makePlanTemplate(){
-      return (
-`Bodyweight Week ${weekSel.value} — Training Log
-(Format: Set1 | Set2 | Set3; "TOP" = hit top of range)
-
-== Day 1 – Any Title You Like ==
-• Reverse Lunge to Knee Drive [40s work]
-• Feet-Elevated Push-ups [6–10 reps]
-• Side Plank with Hip Lifts [8–12 / side]
-• Jump Squats [20s ×3]
-• Bear Crawl Shoulder Taps [40s work]
-
-== Day 2 – Any Title ==
-• Bulgarian Split Squat [8–12 / leg]
-• Single-Leg Glute Bridge Hold [20–30 s / side]
-• Side Lunge to Knee Drive [8–12 / side]
-• Forearm Plank Reach [20–30 s]
-• Calf Raise (Slow Eccentric) [12–15 reps]
-
-== Day 3 – Any Title ==
-• Pike Push-ups [6–10 reps]
-• Hollow Body Hold [20–30 s]
-• Mountain Climbers [30–40 s]
-• Diamond Push-ups [6–10 reps]
-• Burpees (Finisher) [20s on / 10s off ×2]
-`
-      );
-    }
-
-    if(planTemplateLink){
-      planTemplateLink.addEventListener('click', (e)=>{
-        e.preventDefault();
-        const blob = new Blob([makePlanTemplate()], {type:'text/plain'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `Week${weekSel.value}_PLAN_TEMPLATE.txt`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      });
-    }
-
-    function parsePlanText(txt){
-      // Returns {day1:{title, items:[{name,target}]}, ...}
-      const out = {};
-      txt = txt.replace(/\\r\\n?/g, '\\n');
-      const dayRegex = /^==\\s*Day\\s*(\\d)\\s*[^=]*==\\s*$/gmi;
-      let match, indices = [];
-      while((match = dayRegex.exec(txt))){
-        indices.push({day:`day${match[1]}`, idx: match.index, header: match[0]});
-      }
-      indices.push({day:null, idx: txt.length, header:''});
-      for(let i=0;i<indices.length-1;i++){
-        const cur = indices[i], nxt = indices[i+1];
-        const block = txt.slice(cur.idx, nxt.idx);
-        const title = (cur.header||'').replace(/^==\\s*Day\\s*\\d\\s*[—-]\\s*/i,'').replace(/==\\s*$/,'').trim() || '';
-        const items = [];
-        block.split('\\n').forEach(line=>{
-          const m = /^\\s*[•\\-]\\s*(.+?)\\s*\\[(.+?)\\]\\s*$/i.exec(line.trim());
-          if(m){ items.push({name:m[1].trim(), target:m[2].trim()}); }
-        });
-        out[cur.day] = {title, items};
-      }
-      return out;
-    }
-
-    function clearAndSetDay(cardId, plan){
-      const card = document.getElementById(cardId);
-      if(!card) return;
-      if(plan && plan.title){
-        const h2 = card.querySelector('h2');
-        if(h2){
-          const dayNum = (cardId==='day1'?1:cardId==='day2'?2:cardId==='day3'?3:cardId==='day4'?4:5);
-          h2.textContent = `Day ${dayNum} — ${plan.title}`;
-        }
-      }
-      card.querySelectorAll('.ex-row').forEach(r=>r.remove());
-      if(!plan || !plan.items || !plan.items.length){
-        card.classList.add('hidden');
-        return;
-      }
-      card.classList.remove('hidden');
-      const head = card.querySelector('.ex-head');
-      plan.items.forEach(obj=>{
-        const row = document.createElement('div');
-        row.className = 'ex-row';
-        row.innerHTML = `
-          <div class="name">${obj.name}</div>
-          <div class="target">${obj.target}</div>
-          <div class="sets set"><label class="tiny">Set 1</label><input></div>
-          <div class="sets set"><label class="tiny">Set 2</label><input></div>
-          <div class="sets set"><label class="tiny">Set 3</label><input></div>
-          <div class="notes"><textarea></textarea></div>
-          <div class="flag"><input type="checkbox"><span class="tiny">Top?</span></div>`;
-        head.parentNode.appendChild(row);
-      });
-    }
-
-    function applyPlanToWeek(plan){
-      ['day1','day2','day3','day4','day5'].forEach(id=>{
-        clearAndSetDay(id, plan[id]);
-      });
-      bindAutosave();
-      bindSetCompletion();
-      saveWeek();
-    }
-
-    function importPlanFile(file){
-      const reader = new FileReader();
-      reader.onload = ()=>{
-        try{
-          const plan = parsePlanText(String(reader.result||''));
-          applyPlanToWeek(plan);
-          alert('Plan imported to Week ' + weekSel.value + '. You can edit titles & targets by re-importing.');
-        }catch(err){
-          console.error(err);
-          alert('Sorry — could not parse this file. Make sure lines look like:\\n• Exercise Name [target range/time]');
-        }
-      };
+    ;
       reader.readAsText(file);
     }
 
@@ -991,6 +1019,7 @@ window.addEventListener('load', function(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
       <h3 style="margin:0;font-size:16px">Paste Week Plan</h3>
       <div>
+        <button id="planPasteFromClipboard" class="tinybtn">Paste from Clipboard</button>
         <button id="planPasteExample" class="tinybtn">Insert Example</button>
         <button id="planModalClose" class="tinybtn">✕</button>
       </div>
